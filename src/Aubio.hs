@@ -1,6 +1,7 @@
 module Aubio
 ( aubioTrack
 , aubioOnset
+, aubioPitch
 , barBeat ) where
 
 import Sound.File.Sndfile as SF hiding (hGetContents)
@@ -20,6 +21,14 @@ aubioOnset file = do
   msp nums
   return onsets
   where one [x] = x
+
+aubioPitch :: FilePath -> IO [(Double, Double)]
+aubioPitch file = do
+  s <- readFromProc "aubio" ["pitch", file]
+  ttf <- fileTimeToFrame file
+  let nums = parseAubioOutput s
+  return $ map parse nums
+  where parse [timeS, pitchS] = (read timeS, read pitchS)
 
 fileTimeToFrame :: FilePath -> IO (Double -> Int)
 fileTimeToFrame file = do

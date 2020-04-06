@@ -10,4 +10,6 @@ main = do
   msp $ numFrames s
   onsets <- aubioOnset file
   msp onsets
+  pitches <- aubioPitch file
+  msp pitches
   msp "hi"
