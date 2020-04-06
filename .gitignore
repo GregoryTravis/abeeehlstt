@@ -4,3 +4,4 @@ out
 misc
 .stack-work
 stack.yaml.lock
+*.wav

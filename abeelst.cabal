@@ -25,7 +25,7 @@ cabal-version:       >=1.10
 executable abeelst
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       Util
+  other-modules:       Util, Aubio, External, Sound, Memoize
   --ghc-options:         -threaded -rtsopts "-with-rtsopts=-N"
 
   ghc-options:
@@ -36,10 +36,19 @@ executable abeelst
   --ghc-options:         -threaded -rtsopts "-with-rtsopts=-N -sstderr"
   default-language:    Haskell2010
   build-depends:       base,
+                       base16-bytestring,
+                       bytestring,
                        containers,
-                       --hsndfile,
-                       --hsndfile-storablevector,
+                       cryptohash-md5,
+                       directory,
+                       hsndfile,
+                       hsndfile-storablevector,
                        pretty-simple,
                        random,
+                       process,
+                       split,
+                       storablevector,
+                       temporary,
                        text,
-                       time
+                       time,
+                       utf8-string
