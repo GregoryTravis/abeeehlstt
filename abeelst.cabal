@@ -25,8 +25,7 @@ cabal-version:       >=1.10
 executable abeelst
   hs-source-dirs:      src
   main-is:             Main.hs
-  -- other-modules:       Util, External, Aubio, Sound, Resample, Search, Download, Memoize, Analysis, ISO8601Duration, AesonHelpers, Spleeter, Arrangement, Mess, Feh, Affinity, Constants, Graph,
-  --                      Looper, Zipper, FX, Score, Dice, Gui, FPS, State, Ascii, Bars, Viz, Diag, History, SaveLoad, Loop, Animate, Gfx, Hypercube
+  other-modules:       Util
   --ghc-options:         -threaded -rtsopts "-with-rtsopts=-N"
 
   ghc-options:
@@ -36,8 +35,6 @@ executable abeelst
 
   --ghc-options:         -threaded -rtsopts "-with-rtsopts=-N -sstderr"
   default-language:    Haskell2010
-  --extra-libraries:     nonblocking.o
-  c-sources:           src/nonblocking.c
   build-depends:       base,
                        containers,
                        --hsndfile,
