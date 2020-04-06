@@ -1,9 +1,13 @@
 module Main where
 
+import Aubio
 import Sound
 import Util
 
 main = do
-  s <- readSound "pian.wav"
+  let file = "pian.wav"
+  s <- readSound file
   msp $ numFrames s
+  onsets <- aubioOnset file
+  msp onsets
   msp "hi"

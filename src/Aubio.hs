@@ -1,13 +1,32 @@
 module Aubio
 ( aubioTrack
+, aubioOnset
 , barBeat ) where
 
 import Sound.File.Sndfile as SF hiding (hGetContents)
 
 import External
+import Util
 
 parseAubioOutput :: String -> [[String]]
 parseAubioOutput s = map words (lines s)
+
+aubioOnset :: FilePath -> IO [Int]
+aubioOnset file = do
+  s <- readFromProc "aubio" ["onset", file]
+  ttf <- fileTimeToFrame file
+  let nums = parseAubioOutput s
+      onsets = map ttf $ map read $ map one nums
+  msp nums
+  return onsets
+  where one [x] = x
+
+fileTimeToFrame :: FilePath -> IO (Double -> Int)
+fileTimeToFrame file = do
+  sampleRate <- getSampleRate file
+  let toFrame :: Double -> Int
+      toFrame t = floor (t * (fromIntegral sampleRate))
+  return toFrame
 
 aubioTrack :: String -> IO [Int]
 aubioTrack file = do
@@ -26,3 +45,8 @@ barBeat filename = do
       toFrame t = floor (t * (fromIntegral sampleRate))
   csv <- csvCommand "bin/sonic-annotator" ["-q", "-d", "vamp:qm-vamp-plugins:qm-barbeattracker:bars", filename, "-w", "csv", "--csv-stdout"]
   return $ map (toFrame . read . (!! 1)) csv
+
+getSampleRate :: FilePath -> IO Int
+getSampleRate file = do
+  info <- getFileInfo file
+  return $ samplerate info
