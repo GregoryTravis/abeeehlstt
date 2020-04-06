@@ -1,9 +1,11 @@
 module Sort
 ( PitchedNote(..)
 , getPitchedNotes
-, writeNotesToFiles ) where
+, writeNotesToFiles
+, sortOeuvre ) where
 
-import System.Directory (doesFileExist)
+import Data.List (sortOn)
+import System.Directory (doesFileExist, listDirectory)
 
 import Aubio
 import Sound
@@ -41,14 +43,33 @@ endOf s _ = s + durationGuess
 
 writeNotesToFiles :: FilePath -> FilePath -> IO ()
 writeNotesToFiles file destDir = do
-  sound <- readSound file
+  sound <- readSound $ esp file
   pns <- getPitchedNotes file
   mapM_ (writePitchedNote sound destDir) pns
 
 writePitchedNote :: Sound -> FilePath -> PitchedNote -> IO ()
 writePitchedNote sound destDir (PitchedNote s e pitch) = do
-  let destFile = destDir ++ "/" ++ (show pitch) ++ ".wav"
+  let destFile = destDir ++ "/" ++ (show pitch)
   exists <- doesFileExist destFile
   massert (show pitch) (not exists)
   let subSound = snip s e sound
   writeSound destFile subSound
+
+sortedRecombine :: FilePath -> FilePath -> IO ()
+sortedRecombine notesDir outfile = do
+  noteFiles <- fmap (map addDir) $ fmap sortAsDoubles $ listDirectory notesDir
+  msp noteFiles
+  msp ("why", noteFiles)
+  sounds <- mapM readSound noteFiles
+  let all = appendSounds sounds
+  writeSound outfile all
+    where addDir f = notesDir ++ "/" ++ f
+
+sortAsDoubles :: [String] -> [String]
+sortAsDoubles = sortOn (read :: String -> Double)
+
+sortOeuvre :: [FilePath] -> FilePath -> IO ()
+sortOeuvre inputFiles outputFile = do
+  let dir = "notes"
+  mapM (flip writeNotesToFiles dir) inputFiles
+  sortedRecombine dir outputFile
