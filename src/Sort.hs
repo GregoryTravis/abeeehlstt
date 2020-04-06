@@ -1,6 +1,5 @@
 module Sort
 ( PitchedNote(..)
-, getPitchedNotes
 , writeNotesToFiles
 , sortOeuvre ) where
 
@@ -19,12 +18,19 @@ durationGuess = 44100 `div` 4
 data PitchedNote = PitchedNote Int Int Double
   deriving Show
 
--- Get all the pitched notes in a file
-getPitchedNotes :: FilePath -> IO [PitchedNote]
-getPitchedNotes file = do
+-- Get all the pitched notes in a file using 'aubio onset' and 'aubio pitch'
+getPitchedNotesOP :: FilePath -> IO [PitchedNote]
+getPitchedNotesOP file = do
   onsets <- aubioOnset file
   pitches <- aubioPitch file
   return $ timeZip onsets pitches
+
+-- Get all the pitched notes in a file using 'aubio notes'
+getPitchedNotesN :: FilePath -> IO [PitchedNote]
+getPitchedNotesN file = do
+  notes <- aubioNotes file
+  return $ map toPn notes
+    where toPn (p, s, e) = PitchedNote s e p
 
 -- For each onset, look it up in the pitches. Since they're both sorted we can
 -- walk down them at the same time
@@ -44,7 +50,7 @@ endOf s _ = s + durationGuess
 writeNotesToFiles :: FilePath -> FilePath -> IO ()
 writeNotesToFiles file destDir = do
   sound <- readSound $ esp file
-  pns <- getPitchedNotes file
+  pns <- getPitchedNotesN file
   mapM_ (writePitchedNote sound destDir) pns
 
 writePitchedNote :: Sound -> FilePath -> PitchedNote -> IO ()

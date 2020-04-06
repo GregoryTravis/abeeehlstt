@@ -2,6 +2,7 @@ module Aubio
 ( aubioTrack
 , aubioOnset
 , aubioPitch
+, aubioNotes
 , barBeat ) where
 
 import Sound.File.Sndfile as SF hiding (hGetContents)
@@ -9,6 +10,7 @@ import Sound.File.Sndfile as SF hiding (hGetContents)
 import External
 import Util
 
+-- For aubio programs that produce a grid of values
 parseAubioOutput :: String -> [[String]]
 parseAubioOutput s = map words (lines s)
 
@@ -27,6 +29,22 @@ aubioPitch file = do
   ttf <- fileTimeToFrame file
   let parse [timeS, pitchS] = (ttf $ read timeS, read pitchS)
   return $ map parse nums
+
+-- Pitch, start frame, end frame
+aubioNotes :: FilePath -> IO [(Double, Int, Int)]
+aubioNotes file = do
+  ttf <- fileTimeToFrame file
+  ls <- fmap lines $ readFromProc "aubio" ["notes", file]
+  -- First and last lines are just a single double
+  assertJustDouble (head ls)
+  assertJustDouble (last ls)
+  let lsSorted :: [String]
+      lsSorted = reverse (tail (reverse (tail ls)))
+      nums :: [[Double]]
+      nums = map (map read) $ map words lsSorted
+      trip [a, b, c] = (a, ttf b, ttf c)
+  return $ map trip nums
+  where assertJustDouble s = msp (read s :: Double) -- Not sure how to do this otherwise
 
 fileTimeToFrame :: FilePath -> IO (Double -> Int)
 fileTimeToFrame file = do
