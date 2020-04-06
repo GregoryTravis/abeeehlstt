@@ -1,4 +1,4 @@
-name:                abeelst
+name:                abeeehlstt
 version:             0.1.0.0
 -- synopsis:
 -- description:
@@ -22,7 +22,7 @@ cabal-version:       >=1.10
 
 --   Default:      False
 
-executable abeelst
+executable abeeehlstt
   hs-source-dirs:      src
   main-is:             Main.hs
   other-modules:       Util, Aubio, External, Sound, Memoize
