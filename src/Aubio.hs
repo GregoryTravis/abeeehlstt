@@ -14,20 +14,18 @@ parseAubioOutput s = map words (lines s)
 
 aubioOnset :: FilePath -> IO [Int]
 aubioOnset file = do
-  s <- readFromProc "aubio" ["onset", file]
+  nums <- fmap parseAubioOutput $ readFromProc "aubio" ["onset", file]
   ttf <- fileTimeToFrame file
-  let nums = parseAubioOutput s
-      onsets = map ttf $ map read $ map one nums
+  let onsets = map ttf $ map read $ map one nums
   return onsets
   where one [x] = x
 
 -- (frame, pitch)
 aubioPitch :: FilePath -> IO [(Int, Double)]
 aubioPitch file = do
-  s <- readFromProc "aubio" ["pitch", file]
+  nums <- fmap parseAubioOutput $ readFromProc "aubio" ["pitch", file]
   ttf <- fileTimeToFrame file
-  let nums = parseAubioOutput s
-      parse [timeS, pitchS] = (ttf $ read timeS, read pitchS)
+  let parse [timeS, pitchS] = (ttf $ read timeS, read pitchS)
   return $ map parse nums
 
 fileTimeToFrame :: FilePath -> IO (Double -> Int)
