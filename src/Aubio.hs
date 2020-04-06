@@ -18,17 +18,17 @@ aubioOnset file = do
   ttf <- fileTimeToFrame file
   let nums = parseAubioOutput s
       onsets = map ttf $ map read $ map one nums
-  msp nums
   return onsets
   where one [x] = x
 
-aubioPitch :: FilePath -> IO [(Double, Double)]
+-- (frame, pitch)
+aubioPitch :: FilePath -> IO [(Int, Double)]
 aubioPitch file = do
   s <- readFromProc "aubio" ["pitch", file]
   ttf <- fileTimeToFrame file
   let nums = parseAubioOutput s
+      parse [timeS, pitchS] = (ttf $ read timeS, read pitchS)
   return $ map parse nums
-  where parse [timeS, pitchS] = (read timeS, read pitchS)
 
 fileTimeToFrame :: FilePath -> IO (Double -> Int)
 fileTimeToFrame file = do
