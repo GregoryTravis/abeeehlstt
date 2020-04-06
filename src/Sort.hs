@@ -1,6 +1,9 @@
 module Sort
 ( PitchedNote(..)
-, getPitchedNotes ) where
+, getPitchedNotes
+, writeNotesToFiles ) where
+
+import System.Directory (doesFileExist)
 
 import Aubio
 import Sound
@@ -35,3 +38,17 @@ timeZip [] _ = []
 endOf :: Int -> [Int] -> Int
 endOf s (e:j) = e
 endOf s _ = s + durationGuess
+
+writeNotesToFiles :: FilePath -> FilePath -> IO ()
+writeNotesToFiles file destDir = do
+  sound <- readSound file
+  pns <- getPitchedNotes file
+  mapM_ (writePitchedNote sound destDir) pns
+
+writePitchedNote :: Sound -> FilePath -> PitchedNote -> IO ()
+writePitchedNote sound destDir (PitchedNote s e pitch) = do
+  let destFile = destDir ++ "/" ++ (show pitch) ++ ".wav"
+  exists <- doesFileExist destFile
+  massert (show pitch) (not exists)
+  let subSound = snip s e sound
+  writeSound destFile subSound
