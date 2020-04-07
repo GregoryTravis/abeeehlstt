@@ -4,6 +4,7 @@ module Sort
 , sortOeuvre ) where
 
 import Data.List (sortOn)
+import Data.List.Split (splitOn)
 import System.Directory (doesFileExist, listDirectory)
 
 import Aubio
@@ -51,19 +52,20 @@ writeNotesToFiles :: FilePath -> FilePath -> IO ()
 writeNotesToFiles file destDir = do
   sound <- readSound $ esp file
   pns <- getPitchedNotesN file
-  mapM_ (writePitchedNote sound destDir) pns
+  mapM_ (writePitchedNote sound destDir) (zip [0..] pns)
 
-writePitchedNote :: Sound -> FilePath -> PitchedNote -> IO ()
-writePitchedNote sound destDir (PitchedNote s e pitch) = do
-  let destFile = destDir ++ "/" ++ (show pitch)
+writePitchedNote :: Sound -> FilePath -> (Int, PitchedNote) -> IO ()
+writePitchedNote sound destDir (inc, (PitchedNote s e pitch)) = do
+  let destFile = destDir ++ "/" ++ (show pitch) ++ "-" ++ (show inc)
   exists <- doesFileExist destFile
   massert (show pitch) (not exists)
   let subSound = snip s e sound
   writeSound destFile subSound
+  msp ("write", destFile)
 
 sortedRecombine :: FilePath -> FilePath -> IO ()
 sortedRecombine notesDir outfile = do
-  noteFiles <- fmap (map addDir) $ fmap sortAsDoubles $ listDirectory notesDir
+  noteFiles <- fmap (map addDir) $ fmap sortNoteFiles $ listDirectory notesDir
   msp noteFiles
   msp ("why", noteFiles)
   sounds <- mapM readSound noteFiles
@@ -71,8 +73,14 @@ sortedRecombine notesDir outfile = do
   writeSound outfile all
     where addDir f = notesDir ++ "/" ++ f
 
-sortAsDoubles :: [String] -> [String]
-sortAsDoubles = sortOn (read :: String -> Double)
+type NoteFilename = (Double, Int)
+
+parseNoteFilename :: String -> NoteFilename
+parseNoteFilename s = parse (splitOn "-" s)
+  where parse [pitchS, incS] = (read pitchS, read incS)
+
+sortNoteFiles :: [String] -> [String]
+sortNoteFiles = sortOn parseNoteFilename
 
 sortOeuvre :: [FilePath] -> FilePath -> IO ()
 sortOeuvre inputFiles outputFile = do
