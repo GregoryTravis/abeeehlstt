@@ -8,6 +8,7 @@ module Aubio
 import Sound.File.Sndfile as SF hiding (hGetContents)
 
 import External
+import Text.Read (readMaybe)
 import Util
 
 -- For aubio programs that produce a grid of values
@@ -30,14 +31,18 @@ aubioPitch file = do
   let parse [timeS, pitchS] = (ttf $ read timeS, read pitchS)
   return $ map parse nums
 
+checkIsDouble :: String -> Bool
+checkIsDouble s = case readMaybe s :: Maybe Double of Just _ -> True
+                                                      Nothing -> False
+
 -- Pitch, start frame, end frame
 aubioNotes :: FilePath -> IO [(Double, Int, Int)]
 aubioNotes file = do
   ttf <- fileTimeToFrame file
   ls <- fmap lines $ readFromProc "aubio" ["notes", file]
   -- First and last lines are just a single double
-  assertJustDouble (head ls)
-  assertJustDouble (last ls)
+  massert "" (checkIsDouble (head ls))
+  massert "" (checkIsDouble (last ls))
   let lsSorted :: [String]
       lsSorted = reverse (tail (reverse (tail ls)))
       nums :: [[Double]]
