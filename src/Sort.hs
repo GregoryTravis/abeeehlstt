@@ -64,12 +64,12 @@ writePitchedNote sound destDir (inc, (PitchedNote s e pitch)) = do
   massert (show pitch) (not exists)
   let subSound = snip s e sound
   writeSound destFile subSound
-  msp ("write", destFile)
+  --msp ("write", destFile)
 
 sortedRecombine :: FilePath -> FilePath -> IO ()
 sortedRecombine notesDir outfile = do
   noteFiles <- fmap (map addDir) $ fmap sortNoteFiles $ listDirectory notesDir
-  msp noteFiles
+  --msp noteFiles
   --msp ("why", noteFiles)
   sounds <- mapM readSound noteFiles
   let all = appendSounds sounds
