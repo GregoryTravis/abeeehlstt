@@ -1,1 +1,1 @@
-rm notes/* aipn.wav
+rm -f aipn.wav

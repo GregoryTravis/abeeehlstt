@@ -6,6 +6,7 @@ module Sort
 import Data.List (sortOn)
 import Data.List.Split (splitOn)
 import System.Directory (doesFileExist, listDirectory)
+import System.IO.Temp (withSystemTempDirectory)
 
 import Aubio
 import Sound
@@ -36,8 +37,10 @@ getPitchedNotesN file = do
 -- For each onset, look it up in the pitches. Since they're both sorted we can
 -- walk down them at the same time
 timeZip :: [Int] -> [(Int, Double)] -> [PitchedNote]
-timeZip (o:os) ((t0,p0):(t1,p1):ps) | t0 <= o && o < t1 = pn : theRest
-  where pn = PitchedNote o (endOf o os) p0
+timeZip (o:os) pitches@((t0,p0):(t1,p1):ps) | t0 <= o && o < t1 = pn : theRest
+  where pn = PitchedNote o (endOf o os) thePitch
+        --thePitch = p0
+        thePitch = snd $ pitches !! 4
         theRest = timeZip os ((t1,p1):ps)
 timeZip (o:os) ((t0,p0):(t1,p1):ps) | t1 <= o = timeZip (o:os) ((t1,p1):ps)
 timeZip [] _ = []
@@ -51,7 +54,7 @@ endOf s _ = s + durationGuess
 writeNotesToFiles :: FilePath -> FilePath -> IO ()
 writeNotesToFiles file destDir = do
   sound <- readSound $ esp file
-  pns <- getPitchedNotesN file
+  pns <- getPitchedNotesOP file
   mapM_ (writePitchedNote sound destDir) (zip [0..] pns)
 
 writePitchedNote :: Sound -> FilePath -> (Int, PitchedNote) -> IO ()
@@ -67,7 +70,7 @@ sortedRecombine :: FilePath -> FilePath -> IO ()
 sortedRecombine notesDir outfile = do
   noteFiles <- fmap (map addDir) $ fmap sortNoteFiles $ listDirectory notesDir
   msp noteFiles
-  msp ("why", noteFiles)
+  --msp ("why", noteFiles)
   sounds <- mapM readSound noteFiles
   let all = appendSounds sounds
   writeSound outfile all
@@ -84,6 +87,6 @@ sortNoteFiles = sortOn parseNoteFilename
 
 sortOeuvre :: [FilePath] -> FilePath -> IO ()
 sortOeuvre inputFiles outputFile = do
-  let dir = "notes"
-  mapM (flip writeNotesToFiles dir) inputFiles
-  sortedRecombine dir outputFile
+  withSystemTempDirectory "abeeehlstt" $ \dir -> do
+    mapM (flip writeNotesToFiles dir) inputFiles
+    sortedRecombine dir outputFile
