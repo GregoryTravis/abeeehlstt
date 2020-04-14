@@ -38,7 +38,8 @@ getPitchedNotesN file = do
     where toPn (p, s, e) = PitchedNote s e p
 
 -- For each onset, look it up in the pitches. Since they're both sorted we can
--- walk down them at the same time
+-- walk down them at the same time. Don't use the next pitch right after the onset,
+-- use one N further on (N=4)
 timeZip :: [Int] -> [(Int, Double)] -> [PitchedNote]
 timeZip (o:os) pitches@((t0,p0):(t1,p1):ps) | t0 <= o && o < t1 = pn : theRest
   where pn = PitchedNote o (endOf o os) thePitch
@@ -58,6 +59,7 @@ writeNotesToFiles :: FilePath -> FilePath -> IO ()
 writeNotesToFiles file destDir = do
   sound <- readSound $ esp file
   pns <- getPitchedNotesOP file
+  --mapM putStrLn (map show pns)
   mapM_ (writePitchedNote sound destDir) (zip [0..] pns)
 
 writePitchedNote :: Sound -> FilePath -> (Int, PitchedNote) -> IO ()
