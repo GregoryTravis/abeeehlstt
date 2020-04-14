@@ -9,7 +9,7 @@ import Sound
 import Util
 
 theBufSize = 2048
-theHopSize = 256
+theHopSize = 64
 
 -- Compute the spectral centroid of each block of samples.
 spectralCentroidSeriesFile :: FilePath -> IO [Double]
@@ -26,7 +26,15 @@ spectralCentroidSeries sound = do
       bufs = hopBufs theBufSize theHopSize samples
       complexBufs :: [[Complex Double]]
       complexBufs = map (map (:+ 0)) bufs
-   in map spectralCentroid (map fft complexBufs)
+   in normalizeSeries $ map spectralCentroid (map fft complexBufs)
+
+-- Normalize numbers from min..max to 0..1
+-- Pretends there are no negative numbers
+normalizeSeries :: [Double] -> [Double]
+normalizeSeries xs = map norm xs
+  where mn = minimum xs
+        mx = maximum xs
+        norm x = (x-mn)/(mx-mn)
 
 -- Return sublists of size 'bufSize', at offsets separated by 'hopSize'
 -- TODO: deal with final undersized fragment, which we are currently skipping
@@ -39,9 +47,12 @@ hopBufs bufSize hopSize xs = loop xs
 -- Since we are only comparing these values, the frequency bin doesn't matter,
 -- so we just use the array index
 spectralCentroid :: [Complex Double] -> Double
-spectralCentroid cs = sum (zipWith (*) indices xs) / sum indices
+spectralCentroid cs = eesp debug $ sum (zipWith (*) indices normXS) / sum indices
   where indices = take (length xs) [0..]
         xs = map magnitude cs
+        normXS = map (/ totalMag) xs
+        totalMag = sum xs
+        debug = ("totalMag", totalMag)
 
 -- Taken from https://rosettacode.org/wiki/Fast_Fourier_transform#Haskell
 -- Cooley-Tukey

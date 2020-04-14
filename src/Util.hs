@@ -220,8 +220,8 @@ whatThreadIO label = do
 -- minimum :: Ord a => [a] -> a
 -- minimum = minimumBy (<)
 
-maximum :: Ord a => [a] -> a
-maximum = maximumBy compare
+-- maximum :: Ord a => [a] -> a
+-- maximum = maximumBy compare
 
 -- Some monarch on SO: https://stackoverflow.com/a/55743500/5265393
 -- One day I'll know why this works
