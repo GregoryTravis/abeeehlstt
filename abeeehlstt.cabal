@@ -25,7 +25,7 @@ cabal-version:       >=1.10
 executable abeeehlstt
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       Util, Aubio, External, Sound, Memoize, Sort, Ascii
+  other-modules:       Util, Aubio, External, Sound, Memoize, Sort, Ascii, Pitcher
   --ghc-options:         -threaded -rtsopts "-with-rtsopts=-N"
 
   ghc-options:
