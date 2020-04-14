@@ -41,11 +41,12 @@ module Util
 , rotateMod
 , hist
 , replaceInList
+, outercalate
 ) where
 
 import Control.Exception
 import Data.Containers.ListUtils (nubOrd)
-import Data.List (group, groupBy, maximumBy, minimumBy, sort)
+import Data.List (group, groupBy, intercalate, maximumBy, minimumBy, sort)
 import qualified Data.Map.Strict as M
 import Data.Text (unpack)
 import Data.Text.Lazy (toStrict)
@@ -241,3 +242,7 @@ hist xs = zip lens reps
 replaceInList :: [a] -> Int -> a -> [a]
 replaceInList (x:xs) 0 x' = x' : xs
 replaceInList (x:xs) n x' = x : replaceInList xs (n-1) x'
+
+-- Forgive me
+outercalate :: [a] -> [[a]] -> [a]
+outercalate b ss = b ++ (intercalate b ss) ++ b

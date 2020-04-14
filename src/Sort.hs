@@ -1,6 +1,8 @@
 module Sort
 ( PitchedNote(..)
 , writeNotesToFiles
+, chopAtOnsets
+, showOnsetsAndPitches
 , sortOeuvre ) where
 
 import Data.List (sortOn)
@@ -8,6 +10,7 @@ import Data.List.Split (splitOn)
 import System.Directory (doesFileExist, listDirectory)
 import System.IO.Temp (withSystemTempDirectory)
 
+import Ascii
 import Aubio
 import Sound
 import Util
@@ -90,3 +93,43 @@ sortOeuvre inputFiles outputFile = do
   withSystemTempDirectory "abeeehlstt" $ \dir -> do
     mapM (flip writeNotesToFiles dir) inputFiles
     sortedRecombine dir outputFile
+
+-- Divide the audio by onset and write the elements to a dir
+chopAtOnsets :: FilePath -> FilePath -> IO ()
+chopAtOnsets file dir = do
+  --ttf <- fileTimeToFrame file
+  onsets <- aubioOnset file
+  sound <- readSound file
+  --let onsets = map ttf onsetsSeconds
+  mapM_ (writeIt sound) $ zip3 [0..] onsets (tail onsets)
+  where writeIt sound (i, s, e) = do
+          let subSound = snip s e sound
+              outFile = dir ++ "/" ++ (show i) ++ ".wav"
+          writeSound outFile subSound
+
+interleaveTimeSeries :: (Show a, Show b, Num n, Ord n) => [(n, a)] -> [(n, b)] -> [(n, (Either a b))]
+interleaveTimeSeries ((ta,a):as) ((tb,b):bs)
+  | ta <= tb = (ta, Left a) : interleaveTimeSeries as ((tb,b):bs)
+  | otherwise = (tb, Right b) : interleaveTimeSeries ((ta,a):as) bs
+interleaveTimeSeries as [] = map (\(t, a) -> (t, Left a)) as
+interleaveTimeSeries [] bs = map (\(t, b) -> (t, Right b)) bs
+
+-- Display two time series as columns, sorted by the values produced by the time-getter functions
+interleaveTimeSeriesGrid :: (Show a, Show b, Num n, Ord n) => [a] -> [b] -> (a -> n) -> (b -> n) -> String
+interleaveTimeSeriesGrid as bs getATime getBTime =
+  let aTimes = map getATime as
+      bTimes = map getBTime bs
+      --combined :: [Either a b]
+      combined = map snd $ interleaveTimeSeries (zip aTimes as) (zip bTimes bs)
+      rows :: [[String]]
+      rows = map toRow combined
+   in stringGrid rows
+  where --toRow :: Either a b -> [String]
+        toRow (Left a) = [show a, ""]
+        toRow (Right b) = ["", show b]
+
+showOnsetsAndPitches :: FilePath -> IO String
+showOnsetsAndPitches file = do
+  onsets <- aubioOnset file
+  pitches <- aubioPitch file
+  return $ interleaveTimeSeriesGrid onsets pitches id fst

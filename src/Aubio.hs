@@ -3,6 +3,7 @@ module Aubio
 , aubioOnset
 , aubioPitch
 , aubioNotes
+, fileTimeToFrame
 , barBeat ) where
 
 import Sound.File.Sndfile as SF hiding (hGetContents)
