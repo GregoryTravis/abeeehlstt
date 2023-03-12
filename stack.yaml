@@ -44,6 +44,7 @@ packages:
 extra-deps:
 - hsndfile-0.8.0@sha256:3e77b6a4997e2c92b99864b1d63ec8fa42c9e4e26988f74bdf9930eb6793a323,1757
 - hsndfile-storablevector-0.5.2@sha256:f260b08d0d2670087f2a432437877dd93da7a8c763d3607548d6ccc0c7374a62,1309
+- dir-traverse-0.2.2.3@sha256:cbb1e3d0d1f9a3cfcbdc58071fba8a2063bae36bab68279647a331f9a408c18a,2137
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

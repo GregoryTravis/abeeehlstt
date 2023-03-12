@@ -1,3 +1,6 @@
+{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Util
 ( assert
 , assertM
@@ -5,6 +8,7 @@ module Util
 , esp
 , eesp
 , fesp
+, sfesp
 , faresp
 , faaresp
 , faaresp2
@@ -21,12 +25,18 @@ module Util
 , fromLeftReal
 , mappily
 , mcompose
+, wallTime
 , time
+, tv
+, cpuTime
+, unsafeTime
 , noBuffering
 , die
 , predSplit
 , chomp
 , replace
+, weightedRandFromLists
+, weightedRandFromList
 , randFromList
 , randFromListPure
 , randFromListPureN
@@ -42,18 +52,43 @@ module Util
 , hist
 , replaceInList
 , outercalate
+, allEq
+, groupUsing
+, applyMaybes
+, trace
+, gridShow
+, removeSuffix
+, imap
+, takeLast
+, prefixes
+, runList
+, runList_
+, listDirectoryWithPath
+, (!!!)
+, removeElem
+, mapFromListAccum
+, invertMap
+, fromJustE
+, frequency
 ) where
 
+import Control.DeepSeq
 import Control.Exception
 import Data.Containers.ListUtils (nubOrd)
-import Data.List (group, groupBy, intercalate, maximumBy, minimumBy, sort)
+import Data.List (group, groupBy, intercalate, maximumBy, minimumBy, sort, isSuffixOf)
+import Data.Map.Strict (fromListWith, toList)
 import qualified Data.Map.Strict as M
+import Data.Maybe (fromJust)
 import Data.Text (unpack)
 import Data.Text.Lazy (toStrict)
 import Data.Time.Clock (diffUTCTime)
 import Data.Time.Clock.System (getSystemTime, systemToUTCTime)
+import Data.Tuple (swap)
 import Data.Typeable (typeOf)
+import qualified Debug.Trace as TR
 import GHC.Conc
+import System.CPUTime (getCPUTime)
+import System.Directory (listDirectory)
 import System.Exit (die)
 import System.IO (appendFile, hFlush, stdout, stderr, hSetBuffering, BufferMode(..))
 import System.IO.Unsafe
@@ -70,11 +105,18 @@ eesp s a = unsafePerformIO $ do
   hFlush stdout
   return a
 
+fesp :: Show b => (a -> b) -> a -> a
 fesp f a = unsafePerformIO $ do
   putStrLn $ evalString $ show $ f a
   return a
 
+sfesp :: (Show b, Show c) => c -> (a -> b) -> a -> a
+sfesp c f a = unsafePerformIO $ do
+  putStrLn $ evalString $ show (c, f a)
+  return a
+
 -- function, arg, and result
+faresp :: (Show a, Show b) => (a -> b) -> (a -> b)
 faresp f a = unsafePerformIO $ do
   let result = f a
   putStrLn $ evalString $ show $ (a, result)
@@ -147,14 +189,41 @@ mcompose f g x = case g x of Just y -> f y
                              Nothing -> Nothing
 
 -- Taken from https://wiki.haskell.org/Timing_computations
-time :: String -> IO t -> IO t
-time s a = do
+wallTime :: String -> IO t -> IO t
+wallTime s a = do
     start <- getSystemTime
     v <- a
     end <- getSystemTime
     let diff = (systemToUTCTime end) `diffUTCTime` (systemToUTCTime start)
     printf "%s %s\n" s (show diff)
     return v
+
+time :: String -> IO t -> IO t
+time s a = do
+    (v, dt) <- cpuTime a
+    printf "%s %s\n" s (show dt)
+    return v
+
+tv :: NFData a => String -> a -> a
+tv s x = unsafePerformIO $ do
+                 start <- getCPUTime
+                 end <- x `deepseq` getCPUTime
+                 let duration = (fromIntegral (end - start)) / 1_000_000_000_000.0
+                 putStrLn $ "time " ++ s ++ " " ++ (show duration)
+                 --evaluate x
+                 return x
+
+-- Return duration in seconds
+cpuTime :: IO a -> IO (a, Double)
+cpuTime action = do
+  beforePicoseconds <- getCPUTime
+  x <- action
+  afterPicoseconds <- getCPUTime
+  let duration = (fromIntegral (afterPicoseconds - beforePicoseconds)) / 1_000_000_000_000.0
+  return (x, duration)
+
+unsafeTime :: String -> a -> a
+unsafeTime s x = unsafePerformIO (time s (return x))
 
 noBuffering = do
   hSetBuffering stdout NoBuffering
@@ -171,21 +240,43 @@ chomp s =
 replace a b (x : xs) | a == x = b : (replace a b xs)
 replace a b [] = []
 
+-- Sample from lists, weighting the chance of using each list by its weight
+weightedRandFromLists :: [(Double, [a])] -> IO a
+weightedRandFromLists weightedLists = do
+  list <- weightedRandFromList nonemptyWeightedLists
+  randFromList list
+  where nonemptyWeightedLists = filter nonempty weightedLists
+        nonempty = not . null . snd
+
+-- Pick an element from a weighted list, respecting the weights
+weightedRandFromList :: [(Double, a)] -> IO a
+weightedRandFromList weightedElems = do
+  let weightSum = sum (map fst weightedElems)
+  n <- getStdRandom (randomR (0, weightSum))
+  return $ pick weightedElems n
+    where pick :: [(Double, a)] -> Double -> a
+          pick [] n = error "Bad pickList"
+          pick ((w, x) : etc) n | n <= w = x
+                                | otherwise = pick etc (n - w)
+
 randFromList :: [a] -> IO a
+randFromList [] = error "randFromList: empty list"
 randFromList xs = do
   i <- getStdRandom (randomR (0, length xs - 1))
+  --msp ("ORF", i >= length xs, i, length xs)
+  massert ("randFromList", i, length xs) (i >=0 && i < length xs)
   return $ xs !! i
 
-randFromListPure :: RandomGen g => g -> [a] -> (a, g)
-randFromListPure g as =
+randFromListPure :: RandomGen g => [a] -> g -> (a, g)
+randFromListPure as g =
   let (i, g') = randomR (0, length as - 1) g
-   in eesp (length as, i) $ (as !! i, g')
+   in (as !! i, g')
 
-randFromListPureN :: RandomGen g => g -> [a] -> Int -> ([a], g)
-randFromListPureN g as 0 = ([], g)
-randFromListPureN g as n =
-  let (a', g') = eesp ("oy", length as, n) $ randFromListPure g as
-      (as', g'') = randFromListPureN g' as (n-1)
+randFromListPureN :: RandomGen g => [a] -> Int -> g -> ([a], g)
+randFromListPureN as 0 g = ([], g)
+randFromListPureN as n g =
+  let (a', g') = randFromListPure as g
+      (as', g'') = randFromListPureN as (n-1) g'
    in (a':as', g'')
 
 -- Nest elements in groups of n; ok if it doesn't divide evenly
@@ -220,8 +311,8 @@ whatThreadIO label = do
 -- minimum :: Ord a => [a] -> a
 -- minimum = minimumBy (<)
 
--- maximum :: Ord a => [a] -> a
--- maximum = maximumBy compare
+maximum :: Ord a => [a] -> a
+maximum = maximumBy compare
 
 -- Some monarch on SO: https://stackoverflow.com/a/55743500/5265393
 -- One day I'll know why this works
@@ -242,7 +333,105 @@ hist xs = zip lens reps
 replaceInList :: [a] -> Int -> a -> [a]
 replaceInList (x:xs) 0 x' = x' : xs
 replaceInList (x:xs) n x' = x : replaceInList xs (n-1) x'
+replaceInList _ _ _ = error "replaceInList"
 
 -- Forgive me
 outercalate :: [a] -> [[a]] -> [a]
 outercalate b ss = b ++ (intercalate b ss) ++ b
+
+allEq :: Eq a => [a] -> Bool
+allEq [] = True
+allEq (x : xs) = all (x==) xs
+
+-- Group elements via a key (b) produced by the function
+-- I want to call this groupBy but that is something else
+groupUsing :: forall a b. Ord b => (a -> b) -> [a] -> [[a]]
+groupUsing f xs = 
+  let addIt :: a -> M.Map b [a] -> M.Map b [a]
+      addIt x m =
+        let k :: b
+            k = f x
+         in case M.lookup k m of Nothing -> M.insert k [x] m
+                                 Just xs -> M.insert k (x:xs) m
+      m :: M.Map b [a]
+      m = foldr addIt M.empty xs
+      groups :: [[a]]
+      groups = M.elems m
+   in groups
+
+-- I know this exists under a standard name but I can't find it
+applyMaybes :: [a -> Maybe b] -> a -> Maybe b
+applyMaybes (f:fs) a = case f a of Just b -> Just b
+                                   Nothing -> applyMaybes fs a
+applyMaybes [] a = Nothing
+
+trace :: Show a => a -> Bool
+trace x = TR.trace (show x) False
+
+-- lazy, and not in the good way
+gridShow :: Show a => [[a]] -> [[a]]
+gridShow xses = map esp xses
+-- gridShow xses = unsafePerformIO $ do
+--   mapM_ esp xses
+--   return xses
+
+-- Remove the suffix if it is there, otherwise return unchanged.
+removeSuffix :: String -> String -> String
+removeSuffix suffix s =
+  if isSuffixOf suffix s
+    then take (length s - length suffix) s
+    else s
+
+imap :: (Int -> a -> b) -> [a] -> [b]
+imap f xs = zipWith f [0..] xs
+
+takeLast :: Int -> [a] -> [a]
+takeLast n = reverse . (take n) . reverse
+
+prefixes :: [a] -> [[a]]
+prefixes [] = []
+prefixes (x:xs) = [x] : (map (x:) (prefixes xs))
+
+runList :: [IO a] -> IO [a]
+runList (io : ios) = do
+  (:) <$> io <*> runList ios
+runList [] = return []
+
+runList_ :: [IO a] -> IO ()
+runList_ xs = do
+  runList xs
+  return ()
+
+listDirectoryWithPath :: FilePath -> IO [FilePath]
+listDirectoryWithPath dir = do
+  files <- listDirectory dir
+  return $ map ((dir ++ "/") ++) files
+
+-- Like (!!) but don't be so coy
+(!!!) :: Show a => [a] -> Int -> a
+xs !!! i | i >= 0 && i < length xs = xs !! i
+         | otherwise = error (show xs ++ " !!! " ++ show i) 
+
+-- Remove the specified element and return it and the remaining list
+removeElem :: [a] -> Int -> (a, [a])
+removeElem xs i | i < 0 || i >= length xs = error (show ("removeElem", i))
+                | otherwise = go xs i
+  where go (x:xs) 0 = (x, xs)
+        go (x:xs) i = case go xs (i-1) of (x', xs') -> (x', x:xs')
+
+mapFromListAccum :: Ord a => [(a, b)] -> M.Map a [b]
+mapFromListAccum [] = M.empty
+mapFromListAccum ((x, y) : ps) = M.alter alt x (mapFromListAccum ps)
+  where alt (Just oy) = Just (y : oy)
+        alt Nothing = Just [y]
+--alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+
+invertMap :: (Ord a, Ord b) => M.Map a b -> M.Map b a
+invertMap = M.fromList . map swap . M.toList
+
+fromJustE :: String -> Maybe a -> a
+fromJustE label (Just a) = a
+fromJustE label Nothing = error $ "froJustE " ++ label
+
+frequency :: (Ord a) => [a] -> [(a, Int)]
+frequency xs = toList (fromListWith (+) [(x, 1) | x <- xs])

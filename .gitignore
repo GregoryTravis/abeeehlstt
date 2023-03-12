@@ -6,3 +6,5 @@ misc
 stack.yaml.lock
 *.wav
 notes
+.memo
+bin

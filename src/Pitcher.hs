@@ -46,6 +46,13 @@ hopBufs bufSize hopSize xs = loop xs
 
 -- Since we are only comparing these values, the frequency bin doesn't matter,
 -- so we just use the array index
+-- https://en.wikipedia.org/wiki/Spectral_centroid
+-- "It is calculated as the weighted mean of the frequencies present in the signal,
+-- determined using a Fourier transform, with their magnitudes as the weights"
+--
+-- Here, it looks like I'm mulitplying the magnitude by the bin number, i.e. using the bin
+-- number as the frequency, since all we want to do is compare them, so we don't need the
+-- actual frequency.
 spectralCentroid :: [Complex Double] -> Double
 spectralCentroid cs = eesp debug $ sum (zipWith (*) indices normXS) / sum indices
   where indices = take (length xs) [0..]
